@@ -32,19 +32,17 @@ const addProduct = async (req, res) => {
 
 
         // Validasi image
-        if (!req.files || Object.keys(req.files).length === 0) {
+        if (!req.files || req.files.length === 0) {
             return res.status(400).json({
                 message: "No images uploaded",
                 error: "At least one image is required",
             });
-        };
+        }
 
         // Memproses semua gambar yang dikirimkan secara bersamaan
-        const uploadImages = Object.values(req.files || {}).flat().filter(Boolean);
-
         let imagesUrl = await Promise.all(
-            uploadImages.map(async (image) => {
-                let result = await cloudinary.uploader.upload(image.path, {resource_type: "image"});
+            req.files.map(async (file) => {
+                let result = await cloudinary.uploader.upload(file.path, { resource_type: "image" });
                 return result.secure_url;
             })
         );
