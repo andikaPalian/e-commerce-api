@@ -1,4 +1,6 @@
 import express from "express";
+// import fileUpload from "express-fileupload";
+import multer from "multer";
 import cors from "cors";
 import "dotenv/config";
 import db from "./config/db.js";
@@ -15,6 +17,8 @@ connectCloudinary();
 // Middlewares
 app.use(cors());
 app.use(express.json());
+app.use(multer().any());
+// app.use(fileUpload());
 
 // API endpoints
 app.use("/api/user", userRouter);

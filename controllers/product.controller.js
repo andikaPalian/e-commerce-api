@@ -3,7 +3,41 @@ import {v2 as cloudinary} from "cloudinary";
 
 const addProduct = async (req, res) => {
     try {
-        const {name, description, price, image, category, subCategory, sizes, bestseller} = req.body;
+        const {name, description, price, category, subCategory, sizes, bestseller} = req.body;
+
+        if (!name || !description || !price || !category || !subCategory || !sizes) {
+            return res.status(400).json({
+                message: "Missing required fields",
+                error: "name, description, price, category, subCategory, sizes are required",
+            });
+        };
+
+        // Validasai dan parsing sizes
+        let parsedSizes;
+        try {
+            parsedSizes = JSON.parse(sizes);
+            if (!Array.isArray(parsedSizes) || parsedSizes.length === 0) {
+                return res.status(400).json({
+                    message: "Invalid sizes format",
+                    error: "sizes must be a non-empty array",
+                });
+            };
+        } catch (error) {
+            console.error("Error parsing sizes:", error);
+            return res.status(400).json({
+                message: "Invalid sizes format",
+                error: "sizes must be a valid JSON array",
+            });
+        };
+
+
+        // Validasi image
+        if (!req.files || Object.keys(req.files).length === 0) {
+            return res.status(400).json({
+                message: "No images uploaded",
+                error: "At least one image is required",
+            });
+        };
 
         // Memproses semua gambar yang dikirimkan secara bersamaan
         const uploadImages = Object.values(req.files || {}).flat().filter(Boolean);
@@ -15,14 +49,23 @@ const addProduct = async (req, res) => {
             })
         );
 
+        // Validasi price
+        const numericPrice = Number(price);
+        if (isNaN(numericPrice) || numericPrice <= 0) {
+            return res.status(400).json({
+                message: "Invalid price",
+                error: "Price must be a positive number",
+            });
+        };
+
         const product = new productModel({
             name, 
             description,
             category,
-            price: Number(price),
+            price: numericPrice,
             subCategory,
             bestseller: bestseller === "true" ? true : false,
-            sizes: JSON.parse(sizes),
+            sizes: parsedSizes,
             image: imagesUrl,
             date: Date.now(),
         });
