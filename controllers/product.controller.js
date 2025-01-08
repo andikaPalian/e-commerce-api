@@ -81,4 +81,53 @@ const addProduct = async (req, res) => {
     };
 };
 
-export {addProduct};
+const listProduct = async (req, res) => {
+    try {
+        const {category, subCategory, bestseller} = req.query;
+        const filter = {};
+        if (category) {
+            filter.category = category;
+        };
+        if (subCategory) {
+            filter.subCategory = subCategory;
+        };
+        if (bestseller) {
+            filter.bestseller = bestseller === "true";
+        };
+
+        const products = await productModel.find(filter);
+        res.status(200).json({data: products});
+    } catch (error) {
+        console.error("Error listing products:", error);
+        return res.status(500).json({
+            message: "Internal server error",
+            error: error.message || 'An unexpected error occurred',
+        });
+    };
+};
+
+const removeProduct = async (req, res) => {
+    try {
+        const product = await productModel.findByIdAndDelete(req.params.id);
+        if (!product) {
+            return res.status(404).json({message: "Product not found"});
+        };
+        res.status(200).json({message: "Product deleted successfully"});
+    } catch (error) {
+        console.error("Error deleting product:", error);
+        return res.status(500).json({
+            message: "Internal server error",
+            error: error.message || "An unexpected error occurred",
+        });
+    };
+};
+
+const singleProduct = async (req, res) => {
+    try {
+        
+    } catch (error) {
+        
+    }
+}
+
+export {addProduct, listProduct, removeProduct};
