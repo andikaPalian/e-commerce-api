@@ -1,5 +1,6 @@
 import productModel from "../models/product.model.js";
 import {v2 as cloudinary} from "cloudinary";
+import mongoose from "mongoose";
 
 const addProduct = async (req, res) => {
     try {
@@ -108,6 +109,10 @@ const listProduct = async (req, res) => {
 
 const removeProduct = async (req, res) => {
     try {
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+            return res.status(400).json({message: "Invalid product ID"});
+        };
+        
         const product = await productModel.findByIdAndDelete(req.params.id);
         if (!product) {
             return res.status(404).json({message: "Product not found"});
@@ -124,10 +129,22 @@ const removeProduct = async (req, res) => {
 
 const singleProduct = async (req, res) => {
     try {
-        
-    } catch (error) {
-        
-    }
-}
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+            return res.status(400).json({message: "Invalid product ID"});
+        };
 
-export {addProduct, listProduct, removeProduct};
+        const produtcs = await productModel.findById(req.params.id);
+        if (!produtcs) {
+            return res.status(404).json({message: "Product not found"});
+        };
+        res.status(200).json({data: produtcs});
+    } catch (error) {
+        console.error("Error getting product:", error);
+        return res.status(500).json({
+            message: "Internal server error",
+            error: error.message || "An unexpected error occurred",
+        });
+    };
+};
+
+export {addProduct, listProduct, removeProduct, singleProduct};
