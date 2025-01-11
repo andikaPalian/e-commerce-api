@@ -35,6 +35,10 @@ const registerUser = async (req, res) => {
             email: email.toLowerCase().trim(),
             password: hashedPassword,
             role: "user",
+            cart: {
+                items: [],
+                totalAmount: 0,
+            },
         });
         await user.save();
         // Remove password from response
@@ -81,6 +85,10 @@ const registerAdmin = async (req, res) => {
             email: email.toLowerCase().trim(),
             password: hashedPassword,
             role: "admin",
+            cart: {
+                items: [],
+                totalAmount: 0,
+            },
         });
         await admin.save();
         // Remove password from response
@@ -145,7 +153,7 @@ const loginAdmin = async (req, res) => {
         const isMatch = await bcrypt.compare(password, admin.password);
         if (isMatch) {
             const token = jwt.sign({
-                id: user._id,
+                id: admin._id,
                 role: "admin"
             }, process.env.JWT_SECRET, {expiresIn: "1d"});
             admin.password = undefined;
