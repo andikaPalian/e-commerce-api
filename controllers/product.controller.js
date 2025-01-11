@@ -4,23 +4,34 @@ import mongoose from "mongoose";
 
 const addProduct = async (req, res) => {
     try {
-        const {name, description, price, category, subCategory, sizes, bestseller} = req.body;
+        const {name, description, price, category, subCategory, sizeStock, bestseller} = req.body;
 
-        if (!name || !description || !price || !category || !subCategory || !sizes) {
+        if (!name || !description || !price || !category || !subCategory || !sizeStock) {
             return res.status(400).json({
                 message: "Missing required fields",
-                error: "name, description, price, category, subCategory, sizes are required",
+                error: "name, description, price, category, subCategory, sizeStock are required",
             });
         };
 
-        // Validasai dan parsing sizes
-        let parsedSizes;
+        // Validasai dan parsing sizeStock
+        let parsedSizeStock;
         try {
-            parsedSizes = JSON.parse(sizes);
-            if (!Array.isArray(parsedSizes) || parsedSizes.length === 0) {
+            parsedSizeStock = JSON.parse(sizeStock);
+            if (!Array.isArray(parsedSizeStock) || parsedSizeStock.length === 0) {
                 return res.status(400).json({
-                    message: "Invalid sizes format",
-                    error: "sizes must be a non-empty array",
+                    message: "Invalid sizeStock format",
+                    error: "sizeStock must be a non-empty array",
+                });
+            };
+
+            // Validasi struktur sizeStock
+            const isValidSizeStock = parsedSizeStock.every(item => 
+                item.size && typeof item.stock === "number" && item.stock >= 0
+            );
+            if (!isValidSizeStock) {
+                return res.status(400).json({
+                    message: "Invalid sizeStock format",
+                    error: "Each sizeStock item must have size and stock properties",
                 });
             };
         } catch (error) {
@@ -64,7 +75,7 @@ const addProduct = async (req, res) => {
             price: numericPrice,
             subCategory,
             bestseller: bestseller === "true" ? true : false,
-            sizes: parsedSizes,
+            sizeStock: parsedSizeStock,
             image: imagesUrl,
             date: Date.now(),
         });
@@ -84,7 +95,7 @@ const addProduct = async (req, res) => {
 
 const listProduct = async (req, res) => {
     try {
-        const {category, subCategory, bestseller} = req.query;
+        const {category, subCategory, bestseller, inStock} = req.query;
         const filter = {};
         if (category) {
             filter.category = category;
@@ -95,6 +106,10 @@ const listProduct = async (req, res) => {
         if (bestseller) {
             filter.bestseller = bestseller === "true";
         };
+        if (inStock === "true") {
+            // Filter produk yang memiliki stok > 0 untuk setidaknya satu ukuran
+            filter["sizeStock.stock"] = { $gt: 0 };
+        }
 
         const products = await productModel.find(filter);
         res.status(200).json({data: products});
@@ -147,4 +162,33 @@ const singleProduct = async (req, res) => {
     };
 };
 
-export {addProduct, listProduct, removeProduct, singleProduct};
+const updateStock = async (req, res) => {
+    try {
+        const {size, stock} = req.body;
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+            return res.status(400).json({message: "Invalid product ID"}); 
+        };
+        const product = await productModel.findById(req.params.id);
+        if (!product) {
+            return res.status(404).json({message: "Product not found"});
+        };
+        const sizeIndex = product.sizeStock.findIndex(item => item.size === size);
+        if (sizeIndex === -1) {
+            return res.status(404).json({message: "Size not found for this product"});
+        };
+        product.sizeStock[sizeIndex].stock = stock;
+        await product.save();
+        res.status(200).json({
+            message: "Stock updated successfully",
+            data: product,
+        });
+    } catch (error) {
+        console.error("Error updating stock:", error);
+        return res.status(500).json({
+            message: "Internal server error",
+            error: error.message || "An unexpected error occurred",
+        });
+    };
+};
+
+export {addProduct, listProduct, removeProduct, singleProduct, updateStock};
