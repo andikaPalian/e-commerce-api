@@ -1,5 +1,28 @@
 import mongoose from "mongoose";
 
+const cartItemSchema = new mongoose.Schema({
+    productId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Product",
+        required: true,
+    },
+    quantity: {
+        type: Number,
+        required: true,
+        min: 1,
+    },
+    size: {
+        type: String,
+        required: true,
+    },
+    price: {
+        type: Number,
+        required: true,
+    }
+}, {
+    _id: false,
+});
+
 const userSchema = new mongoose.Schema({
     username: {
         type: String,
@@ -14,9 +37,12 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
-    cartData: {
-        type: Object,
-        default: {},
+    cart: {
+        items: [cartItemSchema],
+        totalAmount: {
+            type: Number,
+            default: 0,
+        }
     },
     role: {
         type: String,
@@ -27,6 +53,14 @@ const userSchema = new mongoose.Schema({
     minimize: false,
     timestamps: true,
 });
+
+// Menghitung total harga dari semua barang yang ada di cart
+userSchema.methods.calculateTotalAmount = function() {
+    this.cart.totalAmount = this.cart.items.reduce((total, item) => {
+        return total + (item.price * item.quantity);
+    }, 0);
+    return this.cart.totalAmount;
+};
 
 const userModel = mongoose.model("User", userSchema);
 
