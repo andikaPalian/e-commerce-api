@@ -6,52 +6,92 @@ import bcrypt from "bcrypt";
 const registerUser = async (req, res) => {
     try {
         const {username, email, password, role} = req.body;
-        if (!username || !email || !password) {
+        if (!username?.trim() || !email?.trim() || !password?.trim()) {
             return res.status(400).json({message: "All fields are required"});
         };
         // Check user exists or not
-        const userExists = await userModel.findOne({email});
+        const userExists = await userModel.findOne({
+            email: email.toLowerCase(),
+            role: "user",
+        });
         if (userExists) {
-            return res.status(400).json({message: "User already exists"});
+            return res.status(409).json({message: "User already exists"});
         };
 
         // Validating email format and strong password
         if (!validator.isEmail(email)) {
             return res.json({message: "Please enter a valid email"});
         };
-        if (password.length < 8) {
-            return res.json({message: "Password must be at least 8 characters"});
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+        if (!passwordRegex.test(password)) {
+            return res.json({message: "Password must be at least 8 characters long and contain uppercase, lowercase, number and special characters"});
         };
 
         // hashing password
-        const hashedPassword = await bcrypt.hash(password, 10);
+        const hashedPassword = await bcrypt.hash(password, 12);
 
-        // Menentukan apakah mendaftar sebagai admin atau user
-        const userRole = role === "admin" ? "admin" : "user";
-
-        // Creating new user
-        const userData = {
-            username,
-            email,
+        const user = new userModel({
+            username: username.trim(),
+            email: email.toLowerCase().trim(),
             password: hashedPassword,
-            role: userRole,
-        };
-        const user = new userModel(userData)
+            role: "user",
+        });
         await user.save();
-        
-        if (userRole === "admin") {
-            return res.status(201).json({
-                message: "Admin registered successfully",
-                data: user,
-            });
-        };
-
+        // Remove password from response
+        const userResponse = user.toObject();
+        delete userResponse.password;
         res.status(201).json({
             message: "User registered successfully",
-            data: user,
+            data: userResponse,
         });
     } catch (error) {
         console.error("Error registering user:", error);
+        return res.status(500).json({
+            message: "Internal server error",
+            error: error.message || "An unexpected error occurred",
+        });
+    };
+};
+
+const registerAdmin = async (req, res) => {
+    try {
+        const {username, email, password, role} = req.body;
+        if (!username?.trim() || !email?.trim() || !password?.trim()) {
+            return res.status(400).json({message: "All fields are required"});
+        };
+        const adminExists = await userModel.findOne({
+            email: email.toLowerCase(),
+            role: "admin",
+        });
+        if (adminExists) {
+            return res.status(409).json({message: "Admin already exists"});
+        };
+
+        if (!validator.isEmail(email)) {
+            return res.json({message: "Please enter a valid email"});
+        };
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+        if (!passwordRegex.test(password)) {
+            return res.json({message: "Password must be at least 8 characters long and contain uppercase, lowercase, number and special characters"});
+        };
+
+        const hashedPassword = await bcrypt.hash(password, 12);
+        const admin = new userModel({
+            username: username.trim(),
+            email: email.toLowerCase().trim(),
+            password: hashedPassword,
+            role: "admin",
+        });
+        await admin.save();
+        // Remove password from response
+        const adminResponse = admin.toObject();
+        delete adminResponse.password;
+        res.status(201).json({
+            message: "Admin registered successfully",
+            data: adminResponse,
+        })
+    } catch (error) {
+        console.error("Error registering admin:", error);
         return res.status(500).json({
             message: "Internal server error",
             error: error.message || "An unexpected error occurred",
@@ -125,4 +165,4 @@ const loginAdmin = async (req, res) => {
     };
 };
 
-export {registerUser, loginUser, loginAdmin};
+export {registerUser, registerAdmin, loginUser, loginAdmin};
