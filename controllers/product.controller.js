@@ -172,10 +172,13 @@ const updateStock = async (req, res) => {
         if (!product) {
             return res.status(404).json({message: "Product not found"});
         };
+        // Mencari size dalam sizeStock
         const sizeIndex = product.sizeStock.findIndex(item => item.size === size);
+        // Jika size tidak ditemukan
         if (sizeIndex === -1) {
             return res.status(404).json({message: "Size not found for this product"});
         };
+        // Memperbarui stok
         product.sizeStock[sizeIndex].stock = stock;
         await product.save();
         res.status(200).json({
