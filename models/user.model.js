@@ -54,8 +54,8 @@ const userSchema = new mongoose.Schema({
     timestamps: true,
 });
 
-// Menghitung total harga dari semua barang yang ada di cart
-userSchema.methods.calculateTotalAmount = function() {
+// Menghitung total cart
+userSchema.methods.calculateCartTotal = function() {
     this.cart.totalAmount = this.cart.items.reduce((total, item) => {
         return total + (item.price * item.quantity);
     }, 0);
