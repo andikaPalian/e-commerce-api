@@ -64,7 +64,19 @@ const addToCart = async (req, res) => {
 const getCart = async (req, res) => {
     try {
         const userId = req.user.id;
+        if (!userId) {
+            return res.status(400).json({message: "User ID is required"});
+        };
         const user = await userModel.findById(userId).populate("cart.items.productId", "name image price");
+        if (!user) {
+            return res.status(404).json({message: "User not found"});
+        };
+
+        if (!user.cart) {
+            return res.status(200).json({
+                data: {items: []},
+            });
+        };
         res.status(200).json({data: user.cart});
     } catch (error) {
         console.error("Error getting cart:", error);
