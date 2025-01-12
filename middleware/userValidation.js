@@ -21,7 +21,7 @@ const userValidation = async (req, res, next) => {
                     username: user.username,
                     email: user.email,
                     role: user.role,
-                    cartData: user.cartData
+                    cart: user.cart
                 };
                 next();
             });
