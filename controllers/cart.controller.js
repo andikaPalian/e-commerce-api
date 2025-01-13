@@ -90,7 +90,7 @@ const getCart = async (req, res) => {
 const updateCartItem = async (req, res) => {
     try {
         const {productId, size, quantity} = req.body;
-        const userId = req.user.id;
+        const userId = req.user.userId;
 
         const user = await userModel.findById(userId);
         const existingProduct = user.cart.items.findIndex(item => item.productId.toString() === productId && item.size === size);
@@ -131,7 +131,7 @@ const updateCartItem = async (req, res) => {
 const removeFromCart = async (req, res) => {
     try {
         const {productId, size} = req.body;
-        const userId = req.user.id;
+        const userId = req.user.userId;
 
         const user = await userModel.findById(userId);
         const existingProduct = user.cart.items.findIndex(item => item.productId.toString() === productId && item.size === size);
@@ -157,7 +157,7 @@ const removeFromCart = async (req, res) => {
 
 const clearCart = async (req, res) => {
     try {
-        const userId = req.user.id;
+        const userId = req.user.userId;
         const user = await userModel.findById(userId);
         user.cart = {
             items: [],
