@@ -4,7 +4,7 @@ import productModel from "../models/product.model.js";
 const addToCart = async (req, res) => {
     try {
         const {productId, quantity, size} = req.body;
-        const userId = req.user.id;
+        const userId = req.user.userId;
 
         if (!productId || !quantity || !size) {
             return res.status(400).json({message: "Missing required fields"});
@@ -63,8 +63,7 @@ const addToCart = async (req, res) => {
 
 const getCart = async (req, res) => {
     try {
-        // const userId = req.user.id;
-        const {userId} = req.body;
+        const userId = req.user.userId;
         if (!userId) {
             return res.status(400).json({message: "User ID is required"});
         };
