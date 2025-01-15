@@ -112,4 +112,18 @@ const createOrder = async (req, res) => {
     };
 };
 
-export {createOrder};
+const getOrders = async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        const orders = await orderModel.find({userId}).populate("items.productId", "name image").sort("-createdAt");
+        res.status(200).json({data: orders});
+    } catch (error) {
+        console.error("Error getting orders:", error);
+        return res.status(500).json({
+            message: "Internal server error",
+            error: error.message || "An unexpected error occurred",
+        });
+    };
+};
+
+export {createOrder, getOrders};
