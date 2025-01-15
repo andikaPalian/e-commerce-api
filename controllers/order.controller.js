@@ -6,8 +6,9 @@ import Razorpay from "razorpay";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const razorpay = new Razorpay({
-    
-})
+    key_id: process.env.RAZORPAY_KEY_ID,
+    secret_key: process.env.RAZORPAY_SECRET_KEY,
+});
 
 
 const createOrder = async (req, res) => {
@@ -57,9 +58,46 @@ const createOrder = async (req, res) => {
             });
             order.paymentDetails = {
                 paymentId: paymentIntent.id,
-            }
-        }
+            };
+        } else if (paymentMethod === "razorpay") {
+            const payment = await razorpay.orders.create({
+                amount: Math.round(order.totalAmount * 100),
+                currency: "INR",
+                receipt: order._id.toString(),
+            });
+            order.paymentDetails = {
+                paymentId: payment.id,
+            };
+        };
+
+        // Decrease stock for all items
+        for (const item of order.items) {
+            const product = await productModel.findById(item.productId);
+            product.decreaseStock(item.size, item.quantity);
+            await product.save();
+        };
+
+        await order.save();
+
+        // Clear user cart
+        user.cart = {
+            items: [],
+            totalAmount: 0,
+        };
+        await user.save();
+
+        res.status(201).json({
+            message: "Order created successfully",
+            data: order,
+            paymentDetails: order.paymentDetails,
+        })
     } catch (error) {
-        
-    }
-}
+        console.error("Error creating order:", error);
+        return res.status(500).json({
+            message: "Internal server error",
+            error: error.message || "An unexpected error occurred",
+        });
+    };
+};
+
+export {createOrder};
