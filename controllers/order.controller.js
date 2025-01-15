@@ -48,7 +48,19 @@ const createOrder = async (req, res) => {
         });
 
         // Handle different payment methods
-        if (paymentMethod === "stripe") {
+        if (paymentMethod === "cod") {
+            // COD status pembayaran akan pending samapi barang diterima
+            order.paymentStatus = "pending";
+            order.orderStatus = "processing";
+            // Batas maksimum untuk cod (contoh: 5 juta)
+            const COD_LIMIT = 5000000;
+            if (order.totalAmount > COD_LIMIT) {
+                return res.status(400).json({
+                    message: "Total amount exceeds COD LIMIT",
+                    limit: COD_LIMIT,
+                });
+            };
+        } else if (paymentMethod === "stripe") {
             const paymentIntent = await stripe.paymentIntents.create({
                 amount: Math.round(order.totalAmount * 100),
                 currency: "usd",
@@ -89,7 +101,7 @@ const createOrder = async (req, res) => {
         res.status(201).json({
             message: "Order created successfully",
             data: order,
-            paymentDetails: order.paymentDetails,
+            paymentDetails: order.paymentMethod !== "cod" ? order.paymentDetails : undefined,
         })
     } catch (error) {
         console.error("Error creating order:", error);
