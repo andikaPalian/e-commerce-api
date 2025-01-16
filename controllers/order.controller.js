@@ -3,6 +3,7 @@ import userModel from "../models/user.model.js";
 import productModel from "../models/product.model.js";
 import Stripe from "stripe";
 import Razorpay from "razorpay";
+import { query } from "express";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const razorpay = new Razorpay({
@@ -114,8 +115,8 @@ const createOrder = async (req, res) => {
 
 const getOrders = async (req, res) => {
     try {
-        const userId = req.user.userId;
-        const orders = await orderModel.find({userId}).populate("items.productId", "name image").sort("-createdAt");
+        const adminId = req.user.adminId;
+        const orders = await orderModel.find({adminId}).populate("items.productId", "name image").sort("-createdAt");
         res.status(200).json({data: orders});
     } catch (error) {
         console.error("Error getting orders:", error);
@@ -126,4 +127,104 @@ const getOrders = async (req, res) => {
     };
 };
 
-export {createOrder, getOrders};
+const updateOrderStatus = async (req, res) => {
+    try {
+        const {id} = req.params;
+        const {orderStatus} = req.body;
+
+        const order = await orderModel.findById(id);
+        if (!order) {
+            return res.status(404).json({message: "Order not found"});
+        };
+        
+        // Untuk COD, statusnya tidak bisa diubah jika sudah delivered
+        if (order.paymentMethod === "cod" && order.orderStatus === "delivered") {
+            return res.status(400).json({message: "Cannot update status of delivered COD order"});
+        };
+
+        order.orderStatus = orderStatus;
+
+        // Jika order COD dan statusnya di cancelled, maka kembalikan jumlah stock
+        if (order.paymentMethod === "cod" && orderStatus === "cancelled") {
+            for (const item of order.items) {
+                const product = await productModel.findById(item.productId);
+                if (product) {
+                    const sizeStock = product.sizeStock.find(i => i.size === item.size);
+                    if (sizeStock) {
+                        sizeStock.stock += item.quantity;
+                        await product.save();
+                    };
+                };
+            };
+        };
+
+        await order.save();
+        res.status(200).json({
+            message: "Order status updated succesfully",
+            data: order,
+        });
+    } catch (error) {
+        console.error("Error updating order status:", error);
+        return res.status(500).json({
+            message: "Internal server error",
+            error: error.message || "An unexpected error occurred",
+        });
+    };
+};
+
+const userOrders = async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        const {page = 1, limit = 10, status, paymentStatus, startDate, endDate, paymentMethod} = req.query;
+        const filter = {userId};
+
+        // Add filters
+        if (status) {
+            filter.orderStatus = status;
+        };
+        if (paymentStatus) {
+            filter.paymentStatus = paymentStatus;
+        };
+        if (paymentMethod) {
+            filter.paymentMethod = paymentMethod;
+        };
+        if (startDate || endDate) {
+            filter.createdAt = {};
+            if (startDate) {
+                filter.createdAt.$gte = new Date(startDate);
+            };
+            if (endDate) {
+                filter.createdAt.$lte = new Date(endDate);
+            };
+        };
+
+        // Calculate skip value for pagination
+        const skip = (parseIntA(page) - 1) * parseInt(limit);
+
+        // Get total count for pagination 
+        const totalOrders = await orderModel.countDocuments(filter);
+
+        // Get orders with pagination and populated data
+        const orders = await orderModel.find(filter).populate("items.productId", "name image price").sort({createdAt: -1}).skip(skip).limit(parseInt(limit));
+        
+        // Calculate total pages
+        const totalPages = Math.ceil(totalOrders / parseInt(limit));
+
+        res.status(200).json({
+            data: {
+                orders,
+                currentPage: parseInt(page),
+                totalPages,
+                totalOrders,
+            },
+        });
+    } catch (error) {
+        console.error("Error getting user orders:", error);
+        return res.status(500).json({
+            message: "Internal server error",
+            error: error.message || "An unexpected error occurred",
+        });
+    };
+};
+
+export {createOrder, getOrders, updateOrderStatus, userOrders};

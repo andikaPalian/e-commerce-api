@@ -12,22 +12,22 @@ const adminValidation = async (req, res, next) => {
                     return res.status(403).json({message: "Admin is not authorized"});
                 };
                 // Cek user di database
-                const user = await userModel.findById(decoded.user?.id || decoded.id);
-                if (!user) {
-                    return res.status(404).json({message: "User not found"});
+                const admin = await userModel.findById(decoded.user?.id || decoded.id);
+                if (!admin) {
+                    return res.status(404).json({message: "Admin not found"});
                 };
 
                 // Cek role admin
-                if (user.role !== "admin") {
+                if (admin.role !== "admin") {
                     return res.status(403).json({message: "Access denied. Admin access required"});
                 };
                 // Simpan data admin di request
-                req.user = {
-                    userId: user._id,
+                req.admin = {
+                    adminId: admin._id,
                     username: user.username,
-                    email: user.email,
-                    role: user.role,
-                    cart: user.cart
+                    email: admin.email,
+                    role: admin.role,
+                    cart: admin.cart
                 };
                 next();
             });

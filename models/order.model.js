@@ -62,11 +62,28 @@ const orderSchema = new mongoose.Schema({
     paymentDetails: {
         transactionId: String,
         paymentId: String,
+        paymentSignature: String,
+        paymentIntent: String,
+        currency: String,
+        paymentDate: String,
+        refundId: String,
+        refundStatus: String,
+        refundDate: String
     },
+    deliveryNotes: String,
+    trackingNumber: String,
+    estimatedDeliveryDate: Date,
 },
 {
     timestamps: true,
 });
+
+orderSchema.methods.verifyRazorpayPayment = function(paymentId, signature) {
+    const crypto = require("crypto");
+    const secret = process.env.RAZORPAY_SECRET_WEBOOK;
+    const generated_signature = crypto.createHmac("sha256", secret).update(this.paymentDetails.paymentId + "|" + paymentId).digest("hex");
+    return generated_signature === signature;
+};
 
 const orderModel = mongoose.model("Order", orderSchema);
 export default orderModel;
