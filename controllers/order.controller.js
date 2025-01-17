@@ -172,7 +172,7 @@ const updateOrderStatus = async (req, res) => {
     };
 };
 
-const userOrders = async (req, res) => {
+const getUserOrders = async (req, res) => {
     try {
         const userId = req.user.userId;
         const {page = 1, limit = 10, status, paymentStatus, startDate, endDate, paymentMethod} = req.query;
@@ -227,4 +227,213 @@ const userOrders = async (req, res) => {
     };
 };
 
-export {createOrder, getOrders, updateOrderStatus, userOrders};
+const verifyStripePayment = async (req, res) => {
+    try {
+        const {orderId, paymentIntentId} = req.body;
+
+        const order = await orderModel.findById(orderId);
+        if (!order) {
+            return res.status(404).json({message: "Order not found"});
+        };
+        if (order.paymentMethod !== "stripe") {
+            return res.status(400).json({message: "Invalid payment method"});
+        };
+
+        const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+
+        if (paymentIntent.status === "succeeded") {
+            order.paymentStatus = "paid";
+            order.paymentDetails.paymentIntent = paymentIntentId;
+            order.paymentDetails.transactionId = paymentIntent.charges.data[0].id;
+            order.paymentDetails.paymentDate = new Date();
+            order.paymentDetails.currency = paymentIntent.currency;
+
+            await order.save();
+            return res.status(200).json({
+                message: "Payment verified successfully",
+                order: order,
+            });
+        };
+    } catch (error) {
+        console.error("Error verifying stripe payment:", error);
+        return res.status(500).json({
+            message: "Internal server error",
+            error: error.message || "An unexpected error occurred",
+        });
+    };
+};
+
+const verifyRazorpayPayment = async (req, res) => {
+    try {
+        const {orderId, razorpay_payment_id, razorpay_signature} = req.body;
+
+        const order = await orderModel.findById(orderId);
+        if (!order) {
+            return res.status(404).json({message: "Order not found"});
+        };
+        if (order.paymentMethod !== "razorpay") {
+            return res.status(400).json({message: "Invalid payment method"});
+        };
+
+        if (order.verifyRazorpayPayment(razorpay_payment_id, razorpay_signature)) {
+            order.paymentStatus = "paid";
+            order.paymentDetails.transactionId = razorpay_payment_id;
+            order.paymentDetails.paymentSignature = razorpay_signature;
+            order.paymentDetails.paymentDate = new Date();
+
+            await order.save();
+            return res.status(200).json({
+                message: "Payment verified successfully",
+                order: order,
+            });
+        };
+    } catch (error) {
+        console.error("Error verifying razorpay payment:", error);
+        return res.status(500).json({
+            message: "Internal server error",
+            error: error.message || "An unexpected error occurred",
+        });
+    };
+};
+
+const refundOrder = async (req, res) => {
+    try {
+        const {orderId} = req.params;
+        const {reason} = req.body;
+
+        const order = await orderModel.findById(orderId);
+        if (!order) {
+            return res.status(404).json({message: "Order not found"});
+        };
+        if (order.paymentStatus !== "paid") {
+            return res.status(400).json({message: "Order is not paid yet"});
+        };
+
+        let refund;
+        if (order.paymentMethod === "stripe") {
+            refund = await stripe.refunds.create({
+                payment_intent: order.paymentDetails.paymentIntent,
+                reason: reason || "requested_by_customer",
+            });
+        } else if (order.paymentMethod === "razorpay") {
+            refund = await razorpay.payments.refund(order.paymentDetails.transactionId, {
+                notes: {reason: reason || "customer_requested"},
+            });
+        } else {
+            return res.status(400).json({message: "Refund not available for this payment method"});
+        };
+
+        order.paymentStatus = "refunded";
+        order.paymentDetails.refundId = refund.id;
+        order.paymentDetails.refundStatus = refund.status;
+        order.paymentDetails.refundDate = new Date();
+
+        await order.save();
+        res.status(200).json({
+            message: "Refund processed successfully",
+            data: order,
+        })
+    } catch (error) {
+        console.error("Error processing refund:", error);
+        return res.status(500).json({
+            message: "Internal server error",
+            error: error.message || "An unexpected error occurred",
+        });
+    };
+};
+
+const handleStripeWebhook = async (req, res) => {
+    try {
+        const signature = req.headers["stripe-signature"];
+        const event = stripe.webhooks.constructEvent(
+            req.body,
+            signature,
+            process.env.STRIPE_SECRET_WEBHOOK
+        );
+
+        if (event.type === "payment_intent.succeeded") {
+            const paymentIntent = event.data.object;
+            const order = await orderModel.findOne({
+                'paymentDetails.paymentId': paymentIntent.id
+            });
+
+            if (order) {
+                order.paymentStatus = "paid";
+                order.paymentDetails.transactionId = paymentIntent.charges.data[0].id;
+                await order.save();
+            };
+        };
+
+        res.status(200).json({received: true});
+    } catch (error) {
+        console.error("Error handling Stripe webhook:", error);
+        return res.status(500).json({
+            message: "Internal server error",
+            error: error.message || "An unexpected error occurred",
+        });
+    };
+};
+
+const handleRazorpayWebhook = async (req, res) => {
+    try {
+        const secret = process.env.RAZORPAY_SECRET_WEBOOK;
+        const signature = crypto.createHmac("sha256", secret).update(JSON.stringify(req.body)).digest("hex");
+
+        if (signature === req.headers["x-razorpay-signature"]) {
+            const payment = req.body.payload.payment.entity;
+
+            const order = await orderModel.findOne({
+                'paymentDetails.paymentId': payment.order_id
+            });
+
+            if (order) {
+                order.paymentStatus = "paid";
+                order.paymentDetails.transactionId = payment.id;
+                await order.save();
+            };
+        };
+        
+        res.status(200).json({received: true});
+    } catch (error) {
+        console.error("Error handling Razorpay webhook:", error);
+        return res.status(500).json({
+            message: "Internal server error",
+            error: error.message || "An unexpected error occurred",
+        });
+    };
+};
+
+const confirmCodPayment = async (req, res) => {
+    try {
+        const {id} = req.params;
+
+        const order = await orderModel.findById(id);
+        if (!order) {
+            return res.status(404).json({message: "Order not found"});
+        };
+
+        if (order.paymentMethod !== "cod") {
+            return res.status(400).json({message: "Invalid payment method. This order is not COD"});
+        };
+
+        if (order.orderStatus !== "delivered") {
+            return res.status(400),json({message: "Order must be delivered before confirming payment"});
+        };
+
+        order.paymentStatus = "paid";
+        await order.save();
+
+        res.status(200).json({
+            message: "COD payment confirmed successfully",
+            data: order,
+        });
+    } catch (error) {
+        console.error("Error confirming COD payment:", error);
+        return res.status(500).json({
+            message: "Internal server error",
+            error: error.message || "An unexpected error occurred",
+        });
+    };
+};
+
+export {createOrder, getOrders, updateOrderStatus, getUserOrders, verifyStripePayment, verifyRazorpayPayment, refundOrder, handleStripeWebhook, handleRazorpayWebhook, confirmCodPayment};

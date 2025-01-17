@@ -138,7 +138,7 @@ const loginUser = async (req, res) => {
             error: error.message || "An unexpected error occurred",
         });
     };
-};
+}; 
 
 const loginAdmin = async (req, res) => {
     try {

@@ -9,4 +9,4 @@ userRouter.post("/register-admin", adminValidation, registerAdmin);
 userRouter.post("/login", loginUser);
 userRouter.post("/login-admin", loginAdmin);
 
-export default userRouter;
+export default userRouter; 

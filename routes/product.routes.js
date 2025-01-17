@@ -11,4 +11,4 @@ productRouter.delete("/delete/:id", adminValidation,removeProduct);
 productRouter.get("/single/:id", singleProduct);
 productRouter.put("/update-stock/:id", adminValidation, updateStock);
 
-export default productRouter;
+export default productRouter; 

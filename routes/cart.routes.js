@@ -10,4 +10,4 @@ cartRouter.put("/update", userValidation, updateCartItem);
 cartRouter.delete("/remove", userValidation, removeFromCart);
 cartRouter.delete("/clear", userValidation, clearCart);
 
-export default cartRouter;
+export default cartRouter; 

@@ -159,7 +159,7 @@ const singleProduct = async (req, res) => {
             message: "Internal server error",
             error: error.message || "An unexpected error occurred",
         });
-    };
+    }; 
 };
 
 const updateStock = async (req, res) => {

@@ -10,4 +10,4 @@ const db = async () => {
     };
 };
 
-export default db;
+export default db; 

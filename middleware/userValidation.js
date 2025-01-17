@@ -23,7 +23,7 @@ const userValidation = async (req, res, next) => {
                     role: user.role,
                     cart: user.cart
                 };
-                next();
+                next(); 
             });
         } else {
             return res.status(403).json({message: "Token is missing or not provided"});

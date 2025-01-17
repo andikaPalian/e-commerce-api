@@ -80,4 +80,4 @@ productSchema.methods.decreaseStock = function(size, quantity) {
 
 const productModel = mongoose.model("Product", productSchema);
 
-export default productModel;
+export default productModel; 
