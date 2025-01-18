@@ -24,7 +24,7 @@ const adminValidation = async (req, res, next) => {
                 // Simpan data admin di request
                 req.admin = {
                     adminId: admin._id,
-                    username: user.username,
+                    username: admin.username,
                     email: admin.email,
                     role: admin.role,
                     cart: admin.cart
