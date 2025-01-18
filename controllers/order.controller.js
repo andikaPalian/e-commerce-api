@@ -199,7 +199,7 @@ const getUserOrders = async (req, res) => {
         };
 
         // Calculate skip value for pagination
-        const skip = (parseIntA(page) - 1) * parseInt(limit);
+        const skip = (parseInt(page) - 1) * parseInt(limit);
 
         // Get total count for pagination 
         const totalOrders = await orderModel.countDocuments(filter);
