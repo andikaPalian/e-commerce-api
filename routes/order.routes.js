@@ -8,7 +8,7 @@ const orderRouter = express.Router();
 orderRouter.post("/create", userValidation, createOrder);
 orderRouter.get("/get-user-orders", userValidation, getUserOrders);
 orderRouter.post("/confirm-cod/:id", userValidation, confirmCodPayment);
-orderRouter.post("/refund/orderId", userValidation, refundOrder);
+orderRouter.post("/refund/:orderId", userValidation, refundOrder);
 
 orderRouter.get("/get", adminValidation, getOrders);
 orderRouter.put("/update-status/:id", adminValidation, updateOrderStatus);
